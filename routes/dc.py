@@ -2,8 +2,7 @@ import json
 import logging
 from flask import Flask, request
 
-app = Flask(__name__)
-
+from routes import app
 def calculate_signature(a, b):
     if a == b:
         return 0
@@ -36,17 +35,16 @@ def digital_colony():
     logging.info("Data received for evaluation: {}".format(data))
     
     results = []
-    
+
     for item in data:
         generations = item['generations']
         colony = item['colony']
-        
         grown_colony = grow_colony(colony, generations)
-        
         final_weight = calculate_weight(grown_colony)
-        
+
         results.append(str(final_weight))
-    
+        
+
     logging.info("Results computed: {}".format(results))
     return json.dumps(results)
 
