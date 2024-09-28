@@ -22,30 +22,61 @@ file_handler.setFormatter(formatter)  # Apply the formatter to the handler
 # Add the file handler to the logger
 logger.addHandler(file_handler)
 
-def calculate_efficiency_dp(monsters):
-    n = len(monsters)
-    if n == 0:
-        return 0  # No monsters, no profit
-    
-    # Initialize dp arrays
-    # dp[i][0] -> Max profit up to time i if not attacking
-    # dp[i][1] -> Max profit up to time i if attacking
-    dp = [[0, 0] for _ in range(n)]
+class Node:
+    def __init__(self, state, gold):
+        self.state = state  # "charged", "uncharged"
+        self.gold = gold  # Current gold
+        self.children = []  # List of child nodes (next possible actions)
 
-    # Base case for time 0
-    dp[0][0] = 0 # uncharged
-    dp[0][1] = -monsters[0] # charged
+    def add_child(self, child_node):
+        self.children.append(child_node)
 
-    # Transition for i > 0
-    for i in range(1, n):
-        # If Kazuma attacks at time i, he must have charged at i-1
-        dp[i][0] = dp[i-1][1] + monsters[i]
-        
-        # If Kazuma charges at time i, he could have either charged or attacked at i-1
-        dp[i][1] = max(dp[i-1][1], dp[i-1][0] - monsters[0])
 
-    # Result: the maximum gold coins he can have by the last time step
-    return max(dp[n-1][0], dp[n-1][1])
+def build_tree(node, monsters, idx):
+    # Base case: if no more enemies, stop building the tree
+    if idx >= len(monsters):
+        return
+
+    # Branching from "uncharged"
+    if node.state == "uncharged":
+        # Kazuma can either remain at base or charge
+        uncharge_node = Node("uncharged", node.gold)
+        charge_node = Node("charged", node.gold - monsters[idx])  # Charge, losing current monster gold
+        node.add_child(uncharge_node)
+        node.add_child(charge_node)
+
+        # Recursively build from these states
+        build_tree(uncharge_node, monsters, idx + 1)
+        build_tree(charge_node, monsters, idx + 1)
+
+    # Branching from "charged"
+    elif node.state == "charged":
+        # Kazuma can either stay (remain charging) or attack
+        uncharge_node = Node("uncharged", node.gold + monsters[idx])  # Attack, gaining monster gold
+        charge_node = Node("charged", node.gold)  # Stay charged
+        node.add_child(uncharge_node)
+        node.add_child(charge_node)
+
+        # Recursively build from these states
+        build_tree(uncharge_node, monsters, idx + 1)
+        build_tree(charge_node, monsters, idx + 1)
+
+
+def build_kazuma_tree(monsters):
+    root = Node("uncharged", 0)  # Start at base with 0 gold and the first enemy
+    build_tree(root, monsters, 0)
+    return root
+
+
+# Traverse the tree and find the highest gold value
+def find_max_gold(node):
+    # Base case: if this node has no children, return its gold value
+    if not node.children:
+        return node.gold
+
+    # Recurse through children to find the maximum gold value
+    return max(find_max_gold(child) for child in node.children)
+
 
 @app.route('/efficient-hunter-kazuma', methods=['POST'])
 def efficient_hunter_kazuma():
@@ -54,9 +85,10 @@ def efficient_hunter_kazuma():
 
     for entry in data:
         monsters = entry["monsters"]
-        efficiency = calculate_efficiency_dp(monsters)
-        results.append({"efficiency": efficiency})
-    
+        tree_root = build_kazuma_tree(monsters)
+        max_gold = find_max_gold(tree_root)
+        results.append({"efficiency": max_gold})
+
     return jsonify(results)
 
 if __name__ == '__main__':
