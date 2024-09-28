@@ -1,13 +1,17 @@
 from flask import Flask, request, jsonify
 
 from routes import app
-from collections import defaultdict
+
+def compare(s, t):
+    n = len(s)
+    count = 0
+    for i in range(n):
+        if s[i] != t[i]:
+            count += 1
+    return count == 1
 
 @app.route('/the-clumsy-programmer', methods=['POST'])
 def clumsy():
-    def differs_by_one(word1, word2):
-        return sum(1 for a, b in zip(word1, word2) if a != b) == 1
-    
     data = request.get_json()
     results = []
 
@@ -15,17 +19,21 @@ def clumsy():
         dictionary = entry["dictionary"]
         mistypes = entry["mistypes"]
         
-        words_by_length = defaultdict(list)
+        words_by_length = {}
         for word in dictionary:
-            words_by_length[len(word)].append(word)
+            if len(word) in words_by_length:
+                words_by_length[len(word)].append(word)
+            else:
+                words_by_length[len(word)] = [word]
 
         corrections = []
 
         # For each mistyped word, find the corresponding correct word
         for mistype in mistypes:
             possible_corrections = words_by_length[len(mistype)]
-            correct_word = next((word for word in possible_corrections if differs_by_one(mistype, word)), None)
-            corrections.append(correct_word if correct_word else mistype)
+            for word in possible_corrections:
+                if compare(mistype, word):
+                    corrections.append(word)
 
         results.append({'corrections': corrections})
     
