@@ -19,19 +19,18 @@ def clumsy():
         dictionary = entry["dictionary"]
         mistypes = entry["mistypes"]
         
-        words_by_length = {}
-        for word in dictionary:
-            if len(word) in words_by_length:
-                words_by_length[len(word)].append(word)
-            else:
-                words_by_length[len(word)] = [word]
+        # words_by_length = {}
+        # for word in dictionary:
+        #     if len(word) in words_by_length:
+        #         words_by_length[len(word)].append(word)
+        #     else:
+        #         words_by_length[len(word)] = [word]
 
         corrections = []
 
         # For each mistyped word, find the corresponding correct word
         for mistype in mistypes:
-            possible_corrections = words_by_length[len(mistype)]
-            for word in possible_corrections:
+            for word in dictionary:
                 if compare(mistype, word):
                     corrections.append(word)
 

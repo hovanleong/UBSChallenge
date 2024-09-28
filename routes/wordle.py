@@ -21,7 +21,7 @@ WORD_LIST = load_words_from_file(file_path)
 def filter_words(guess_history, evaluation_history):
     confirmed = [''] * 5
     possible = {}
-    letters = [1] * 26
+    letters = [5] * 26
     n = len(guess_history)
     for i in range(n):
         g = guess_history[i]
@@ -29,16 +29,15 @@ def filter_words(guess_history, evaluation_history):
         for j in range(5):
             if e[j] == 'O':
                 confirmed[j] = g[j]
-                letters[ord(g[j]) - ord('a')] += 1
             elif e[j] == 'X':
                 if possible.get(g[j]) == None:
                     possible[g[j]] = [i for i in range(5) if i != j]
                 else:
                     if j in possible[g[j]]:
                         possible[g[j]].remove(j)  
-                letters[ord(g[j]) - ord('a')] += 1                      
-            elif e[j] == '-':    
-                letters[ord(g[j]) - ord('a')] -= 1
+            elif e[j] == '-':
+                if g[j] not in confirmed and g[j] not in possible:    
+                    letters[ord(g[j]) - ord('a')] = 0
            
 
     res = ''
@@ -62,7 +61,6 @@ def filter_words(guess_history, evaluation_history):
         
         if not match:
             continue  # Skip this word if it doesn't match confirmed letters
-
         # Check against possible letters and their positions
         possible_duplicate = possible.copy()
         for i in avail_index:
@@ -78,10 +76,8 @@ def filter_words(guess_history, evaluation_history):
         # Check against excluded letters
         for j in range(26):
             if word.count(chr(j + ord('a'))) > letters[j]:
-                print(chr(j + ord('a')))
                 match = False
                 break  # Word contains an excluded letter
-        
         # If all conditions are satisfied, add to valid guesses
         if match:
             res = word
