@@ -11,3 +11,4 @@ import routes.b2
 import routes.wordle
 import routes.clumsy
 import routes.decode
+import routes.mail
