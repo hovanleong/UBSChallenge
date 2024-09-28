@@ -2,25 +2,19 @@ from flask import Flask, request, jsonify
 
 from routes import app
 
-from joblib import Parallel, delayed
+import string
 
-def compare(s, t):
-    # We know s and t are the same length
-    mismatch_count = 0
-    for i in range(len(s)):
-        if s[i] != t[i]:
-            mismatch_count += 1
-            # Exit early if there is more than 1 mismatch
-            if mismatch_count > 1:
-                return False
-    return mismatch_count == 1  # Return True if exactly 1 mismatch
-
-def find_correction(mistype, dictionary):
-    # Find the first word in the dictionary that differs by exactly one character
-    for word in dictionary:
-        if compare(mistype, word):
-            return word
-    return None
+# Generate all variants of a word by changing one character
+def generate_one_off_variants(word):
+    variants = set()
+    letters = string.ascii_lowercase
+    for i in range(len(word)):
+        for letter in letters:
+            if letter != word[i]:
+                # Replace character at position i with every possible letter
+                variant = word[:i] + letter + word[i+1:]
+                variants.add(variant)
+    return variants
 
 @app.route('/the-clumsy-programmer', methods=['POST'])
 def clumsy():
@@ -28,11 +22,18 @@ def clumsy():
     results = []
 
     for entry in data:
-        dictionary = entry["dictionary"]
+        dictionary = set(entry["dictionary"])  # Store the dictionary in a set for fast lookups
         mistypes = entry["mistypes"]
+        corrections = []
 
-        # Use parallel processing to speed up corrections search
-        corrections = Parallel(n_jobs=-1)(delayed(find_correction)(mistype, dictionary) for mistype in mistypes)
+        for mistype in mistypes:
+            # Generate all possible variants of the mistyped word
+            variants = generate_one_off_variants(mistype)
+            # Check which variant exists in the dictionary
+            for variant in variants:
+                if variant in dictionary:
+                    corrections.append(variant)
+                    break  # Stop as soon as a correction is found
 
         results.append({'corrections': corrections})
 
