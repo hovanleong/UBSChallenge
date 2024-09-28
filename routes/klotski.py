@@ -9,41 +9,47 @@ logger = logging.getLogger(__name__)
 
 # Function to move the pieces based on the moves string
 def move_pieces(board, moves):
-    # Convert the board string to a list for easier manipulation
-    board_list = list(board)
-    
     # Get the width of the board (assuming fixed width for Klotski)
     width = 4
-    empty_index = board_list.index('@')  # Find the index of the empty space
+
+    # Create a dictionary to hold the coordinates of each block
+    block_positions = {block: (i // width, i % width) for i, block in enumerate(board)}
+    empty_position = block_positions['@']  # Get the position of the empty space
 
     # Define the direction mappings
     directions = {
-        'N': -width,  # Move up
-        'S': width,   # Move down
-        'E': 1,       # Move right
-        'W': -1       # Move left
+        'N': (-1, 0),  # Move up
+        'S': (1, 0),   # Move down
+        'E': (0, 1),   # Move right
+        'W': (0, -1)   # Move left
     }
 
     # Process moves in pairs
     for i in range(0, len(moves), 2):
-        direction = moves[i]       # The first character of the pair (direction)
-        block = moves[i + 1]      # The second character of the pair (block to move)
+        direction = moves[i + 1]       # The first character of the pair (direction)
+        block = moves[i]      # The second character of the pair (block to move)
 
-        # Find the current index of the block
-        block_index = board_list.index(block)
+        for block in block_positions:
+            # Get the current position of the block
+            block_position = block_positions[block]
+            target_position = (block_position[0] + directions[direction][0], 
+                            block_position[1] + directions[direction][1])
 
-        # Calculate the index of the target position for the block
-        target_index = block_index + directions[direction]
+            # Check if the target position is valid and is the empty space
+            if target_position == empty_position:
+                # Swap the block and the empty space in the dictionary
+                block_positions[block], block_positions['@'] = empty_position, block_position
 
-        # Ensure that the block can move to the empty space
-        if target_index == empty_index:
-            # Swap the empty space with the block
-            board_list[empty_index], board_list[block_index] = board_list[block_index], board_list[empty_index]
-            # Update the index of the empty space
-            empty_index = block_index  # Update to the new empty index
+                # Update the empty position
+                empty_position = block_position
 
-    # Convert the list back to a string
-    return ''.join(board_list)
+    # Build the resultant board string from the block positions
+    result_board = [''] * len(board)
+    for block, position in block_positions.items():
+        index = position[0] * width + position[1]  # Convert to index
+        result_board[index] = block
+    
+    return ''.join(result_board)
 
 @app.route('/klotski', methods=['POST'])
 def klotski():
