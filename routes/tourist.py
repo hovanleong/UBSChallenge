@@ -6,7 +6,7 @@ from flask import request
 from routes import app
 
 from constants.tourist import TRAVELLING_TIME, TRAIN_LINES
-from collections import deque
+from heapq import heappop, heappush
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Set the level of the logger
@@ -22,290 +22,197 @@ file_handler.setFormatter(formatter)  # Apply the formatter to the handler
 # Add the file handler to the logger
 logger.addHandler(file_handler)
 
+# Graph construction function
 def build_graph():
-    graph = {}  # This will store the adjacency list
+    # Step 1: Collect all unique stations
+    all_stations = set()
+    for stations in TRAIN_LINES.values():
+        all_stations.update(stations)
+
+    # Step 2: Create mappings from station name to index and vice versa
+    station_to_index = {station: idx for idx, station in enumerate(sorted(all_stations))}
+    index_to_station = {idx: station for station, idx in station_to_index.items()}
+
+    # Step 3: Initialize the adjacency list
+    graph = {i: [] for i in station_to_index.values()}  # Each node points to a list of tuples (neighbor, cost)
     
     for line, stations in TRAIN_LINES.items():
-        # Iterate through each station in the train line and connect it to its neighbors
-
         travel_time = TRAVELLING_TIME.get(line)
         if not travel_time:
             continue
-
+        
         prev_station = None
         for station in stations:
-            if station not in graph:
-                graph[station] = []
-            if prev_station:
-                graph[prev_station].append((station, travel_time))
-                graph[station].append((prev_station, travel_time))
+            station_idx = station_to_index[station]
+            if prev_station is not None:
+                prev_station_idx = station_to_index[prev_station]
+
+                # Check if connection already exists and update if the new travel time is smaller
+                existing_connection = next(((neighbor, cost) for neighbor, cost in graph[prev_station_idx] if neighbor == station_idx), None)
+                
+                if existing_connection:
+                    # Update the connection with the smaller travel time
+                    current_cost = existing_connection[1]
+                    if travel_time < current_cost:
+                        # Update both directions (prev -> current and current -> prev)
+                        graph[prev_station_idx] = [(neighbor, cost if neighbor != station_idx else travel_time) for neighbor, cost in graph[prev_station_idx]]
+                        graph[station_idx] = [(neighbor, cost if neighbor != prev_station_idx else travel_time) for neighbor, cost in graph[station_idx]]
+                else:
+                    # If no existing connection, add the new one
+                    graph[prev_station_idx].append((station_idx, travel_time))
+                    graph[station_idx].append((prev_station_idx, travel_time))
+                    
             prev_station = station
-    
-    return graph
 
-graph = build_graph()
+    return graph, station_to_index, index_to_station
 
-import heapq
-from collections import defaultdict
+# Build the graph, station-to-index mappings, and index-to-station mappings
+graph, station_to_index, index_to_station = build_graph()
 
-# def dijkstra(graph, start):
-#     dist = defaultdict(lambda: float('inf'))
-#     dist[start] = 0
-#     pq = [(0, start)]  # (distance, station)
-#     prev = {start: None}  # Track the previous station to reconstruct the path
-
-#     while pq:
-#         current_dist, current_station = heapq.heappop(pq)
-
-#         if current_dist > dist[current_station]:
-#             continue
-
-#         for neighbor, travel_time in graph[current_station]:
-#             new_dist = current_dist + travel_time
-#             if new_dist < dist[neighbor]:
-#                 dist[neighbor] = new_dist
-#                 prev[neighbor] = current_station  # Update the previous station
-#                 heapq.heappush(pq, (new_dist, neighbor))
-
-#     # Reconstruct full paths
-#     paths = {station: [] for station in dist}
-#     for station in dist:
-#         current = station
-#         while current is not None:
-#             paths[station].append(current)
-#             current = prev[current]
-#         paths[station].reverse()  # Reverse to get the correct order
-
-#     return dist, paths
-
-# def get_shortest_paths(graph, key_stations):
-#     shortest_paths = {}
-#     full_paths = {}  # Store full paths between key stations
-
-#     for station in key_stations:
-#         dist, paths = dijkstra(graph, station)
-#         shortest_paths[station] = dist
-#         full_paths[station] = paths
-
-#     return shortest_paths, full_paths
-
-# def maximize_satisfaction_dp(locations, graph, starting_point, time_limit):
-#     # Get key locations (stations with satisfaction)
-    
-#     # Precompute shortest paths and full paths between key stations
-#     shortest_paths, full_paths = get_shortest_paths(graph, locations)
-    
-#     # Map stations to indices for bitmasking
-#     station_idx = {station: idx for idx, station in enumerate(locations)}
-#     idx_station = {idx: station for station, idx in station_idx.items()}
-#     n = len(locations)
-    
-#     # Dynamic Programming table: dp[mask][i] = (max_satisfaction, remaining_time)
-#     dp = [[(-float('inf'), 0)] * n for _ in range(1 << n)]
-#     prev_station = [[-1] * n for _ in range(1 << n)]  # To store the previous station for backtracking
-    
-#     start_idx = station_idx[starting_point]
-#     dp[1 << start_idx][start_idx] = (0, time_limit)  # Start at the starting point with time limit
-    
-#     # Iterate over all possible masks (sets of visited stations)
-#     for mask in range(1 << n):
-#         for u in range(n):  # Station u
-#             if dp[mask][u][0] == -float('inf'):  # Skip invalid states
-#                 continue
-            
-#             current_satisfaction, remaining_time = dp[mask][u]
-#             current_station = idx_station[u]
-            
-#             # Try to go to all other unvisited stations
-#             for v in range(n):
-#                 if mask & (1 << v):  # Skip if station v has already been visited
-#                     continue
-                
-#                 next_station = idx_station[v]
-#                 travel_time = shortest_paths[current_station][next_station]
-                
-#                 if remaining_time - travel_time >= 0:  # Check if there's enough time to reach the next station
-#                     satisfaction, time_at_station = locations.get(next_station, (0, 0))
-#                     new_mask = mask | (1 << v)  # Mark the station as visited
-#                     new_remaining_time = remaining_time - travel_time - time_at_station
-                    
-#                     # Only update DP table if there's enough time to return to the start
-#                     return_to_start_time = shortest_paths[next_station][starting_point]
-#                     if new_remaining_time - return_to_start_time >= 0:  # Ensure enough time to return to start
-#                         # Ensure we have time left to return
-#                         if dp[new_mask][v][0] < current_satisfaction + satisfaction and new_remaining_time >= 0:
-#                             dp[new_mask][v] = (current_satisfaction + satisfaction, new_remaining_time)
-#                             prev_station[new_mask][v] = u  # Store the previous station
-    
-#     # Find the maximum satisfaction when returning to the starting point
-#     best_satisfaction = 0
-#     best_final_state = (0, 0)
-    
-#     for mask in range(1 << n):
-#         for u in range(n):
-#             if dp[mask][u][0] > -float('inf'):  # Valid state
-#                 travel_time_back = shortest_paths[idx_station[u]][starting_point]
-#                 if dp[mask][u][1] - travel_time_back >= 0:  # Ensure enough time to return
-#                     if dp[mask][u][0] > best_satisfaction:
-#                         best_satisfaction = dp[mask][u][0]
-#                         best_final_state = (mask, u)
-
-#     # Reconstruct the path and the total travel time
-#     best_mask, best_final_station = best_final_state
-#     key_path = []
-#     total_travel_time = 0
-#     current_station = best_final_station
-    
-#     # Backtrack from the final station
-#     while best_mask != 0:
-#         key_path.append(idx_station[current_station])
-#         next_station = prev_station[best_mask][current_station]
+# Function to find all paths between two stations under a cost threshold
+def find_all_paths(graph, start, end, max_cost):
+    """
+    Find all paths between start and end that are within the given max_cost.
+    """
+    def dfs(current, end, visited, current_path, current_cost):
+        # Debugging statement to trace DFS calls
+        # logger.debug(f"DFS visiting node {current} with current path: {current_path} and cost: {current_cost}")
         
-#         # Add travel time between current_station and next_station
-#         if next_station != -1:
-#             total_travel_time += shortest_paths[idx_station[current_station]][idx_station[next_station]]
+        if current_cost > max_cost:
+            return
+        if current == end:
+            # Avoid logging the same path multiple times
+            path_tuple = tuple(current_path)
+            if path_tuple not in unique_paths:
+                unique_paths.add(path_tuple)
+                logger.info(f"Path found: {current_path} with cost {current_cost}")
+                all_paths.append((list(current_path), current_cost))
+            return
         
-#         best_mask ^= (1 << current_station)  # Remove current station from mask
-#         current_station = next_station
-    
-#     key_path.reverse()  # Reverse to get the correct order
-    
-#     # Finally, add the time to return to the starting point
-#     total_travel_time += shortest_paths[idx_station[best_final_station]][starting_point]
-#     key_path.append(starting_point)  # Return to the starting point
-
-#     # Reconstruct the full path using the full_paths dictionary
-#     full_path = []
-#     for i in range(len(key_path) - 1):
-#         current_station = key_path[i]
-#         next_station = key_path[i + 1]
-#         full_path += full_paths[current_station][next_station][:-1]  # Append all but the last station to avoid duplicates
-#     full_path.append(starting_point)  # Add the final station (starting point)
-
-#     return {"key_path": key_path, "full_path": full_path, "satisfaction": best_satisfaction, "total_travel_time": total_travel_time}
-
-
-# Dijkstra's algorithm to find the shortest path from a start station to all others
-def dijkstra(graph, start):
-    dist = defaultdict(lambda: float('inf'))
-    dist[start] = 0
-    pq = [(0, start)]  # (distance, station)
-    
-    while pq:
-        current_dist, current_station = heapq.heappop(pq)
-        
-        if current_dist > dist[current_station]:
-            continue
-        
-        for neighbor, travel_time in graph[current_station]:
-            new_dist = current_dist + travel_time
-            if new_dist < dist[neighbor]:
-                dist[neighbor] = new_dist
-                heapq.heappush(pq, (new_dist, neighbor))
-    
-    return dist
-
-# Get shortest paths between key stations using Dijkstra's algorithm
-def get_shortest_paths(graph, key_stations):
-    shortest_paths = {}
-    
-    for station in key_stations:
-        shortest_paths[station] = dijkstra(graph, station)
-    
-    return shortest_paths
-
-def maximize_satisfaction_dp(locations, graph, starting_point, time_limit):
-    # Get key locations (stations with satisfaction)
-    
-    # Precompute shortest paths between key stations
-    shortest_paths = get_shortest_paths(graph, locations)
-    
-    # Map stations to indices for bitmasking
-    station_idx = {station: idx for idx, station in enumerate(locations)}
-    idx_station = {idx: station for station, idx in station_idx.items()}
-    n = len(locations)
-    
-    # Dynamic Programming table: dp[mask][i] = (max_satisfaction, remaining_time)
-    dp = [[(-float('inf'), 0)] * n for _ in range(1 << n)]
-    prev_station = [[-1] * n for _ in range(1 << n)]  # To store the previous station for backtracking
-    
-    start_idx = station_idx[starting_point]
-    dp[1 << start_idx][start_idx] = (0, time_limit)  # Start at the starting point with time limit
-    
-    # Iterate over all possible masks (sets of visited stations)
-    for mask in range(1 << n):
-        for u in range(n):  # Station u
-            if dp[mask][u][0] == -float('inf'):  # Skip invalid states
-                continue
-            
-            current_satisfaction, remaining_time = dp[mask][u]
-            current_station = idx_station[u]
-            
-            # Try to go to all other unvisited stations
-            for v in range(n):
-                if mask & (1 << v):  # Skip if station v has already been visited
-                    continue
+        # Explore neighbors
+        for neighbor, travel_cost in graph[current]:
+            if neighbor not in visited:  # Avoid revisiting nodes
+                visited.add(neighbor)
+                current_path.append(neighbor)
                 
-                next_station = idx_station[v]
-                travel_time = shortest_paths[current_station][next_station]
+                # Recurse deeper into the graph
+                dfs(neighbor, end, visited, current_path, current_cost + travel_cost)
                 
-                if remaining_time - travel_time >= 0:  # Check if there's enough time to reach the next station
-                    satisfaction, time_at_station = locations.get(next_station, (0, 0))
-                    new_mask = mask | (1 << v)  # Mark the station as visited
-                    new_remaining_time = remaining_time - travel_time - time_at_station
-                    
-                    # Only update DP table if there's enough time to return to the start
-                    return_to_start_time = shortest_paths[next_station][starting_point]
-                    if new_remaining_time - return_to_start_time >= 0:  # Ensure enough time to return to start
-                        # Ensure we have time left to return
-                        if dp[new_mask][v][0] < current_satisfaction + satisfaction and new_remaining_time >= 0:
-                            dp[new_mask][v] = (current_satisfaction + satisfaction, new_remaining_time)
-                            prev_station[new_mask][v] = u  # Store the previous station
+                # Backtrack: remove the last node added to the path
+                current_path.pop()
+                visited.remove(neighbor)
+
+    all_paths = []
+    unique_paths = set()  # Set to store unique paths
+    visited = set([start])  # Initialize the visited set with the start node
+    dfs(start, end, visited, [start], 0)  # Start DFS with the start node
     
-    # Find the maximum satisfaction when returning to the starting point
-    best_satisfaction = 0
-    best_final_state = (0, 0)
+    return all_paths
+
+# TSP between key stations using dynamic programming with bitmasking
+def tsp_between_key_stations(key_stations, paths_between_keys, satisfaction, extra_cost, max_cost, start_idx):
+    n = len(key_stations)
+    key_station_indices = {station: i for i, station in enumerate(key_stations)}
     
+    # DP table: dp[mask][i] = tuple (max_satisfaction, total_cost, visited_stations_set)
+    # `visited_stations_set` keeps track of all stations (key and minor) visited from start to key station `i`
+    dp = [[(-float('inf'), float('inf'), set())] * n for _ in range(1 << n)]
+    parent = [[-1] * n for _ in range(1 << n)]  # To reconstruct the path
+    
+    # Base case: starting from the starting station with satisfaction and cost
+    dp[1 << start_idx][start_idx] = (satisfaction[start_idx], 0, {key_stations[start_idx]})  # Start at start_idx
+    
+    # Fill DP table
     for mask in range(1 << n):
         for u in range(n):
-            if dp[mask][u][0] > -float('inf'):  # Valid state
-                travel_time_back = shortest_paths[idx_station[u]][starting_point]
-                if dp[mask][u][1] - travel_time_back >= 0:  # Ensure enough time to return
-                    if dp[mask][u][0] > best_satisfaction:
-                        best_satisfaction = dp[mask][u][0]
-                        best_final_state = (mask, u)
-
-    # Reconstruct the path and the total travel time
-    best_mask, best_final_station = best_final_state
+            if mask & (1 << u):  # If u is in the current mask (visited)
+                for v in range(n):
+                    if mask & (1 << v) == 0:  # If v is not in the mask (unvisited)
+                        if (key_stations[u], key_stations[v]) in paths_between_keys:
+                            for path, path_cost in paths_between_keys[(key_stations[u], key_stations[v])]:
+                                new_cost = dp[mask][u][1] + path_cost + extra_cost[v]
+                                new_satisfaction = dp[mask][u][0] + satisfaction[v]
+                                new_mask = mask | (1 << v)
+                                
+                                # Collect all stations on the path from the start point to v
+                                # This includes the stations visited along all previous paths plus the current path
+                                path_stations = set(path)  # Stations in the current path u -> v
+                                cumulative_stations = dp[mask][u][2].union(path_stations)  # Include all previously visited stations
+                                
+                                # Check if any stations have already been visited
+                                if key_stations[v] not in cumulative_stations:  # Ensure the key station `v` itself isn't revisited
+                                    cumulative_stations.add(key_stations[v])  # Add the current key station `v` to the visited set
+                                    
+                                    # Update only if no duplicates and the new cost is within the budget
+                                    if new_cost <= max_cost and new_satisfaction > dp[new_mask][v][0]:
+                                        dp[new_mask][v] = (new_satisfaction, new_cost, cumulative_stations)
+                                        parent[new_mask][v] = u
+    
+    # Find the best path that visits all key stations, returns to the start, and maximizes satisfaction
+    final_mask = (1 << n) - 1  # All stations visited
+    best_satisfaction = -float('inf')
+    best_cost = float('inf')
+    last_station = -1
+    
+    # Ensure we return to the start station
+    for i in range(n):
+        if i != start_idx and (key_stations[i], key_stations[start_idx]) in paths_between_keys:
+            return_path_cost = paths_between_keys[(key_stations[i], key_stations[start_idx])][0][1]
+            total_cost = dp[final_mask][i][1] + return_path_cost
+            total_satisfaction = dp[final_mask][i][0]
+            
+            # Only consider this path if it stays within the max_cost
+            if total_cost <= max_cost and total_satisfaction > best_satisfaction:
+                best_satisfaction = total_satisfaction
+                best_cost = total_cost
+                last_station = i
+    
+    # Reconstruct the path
+    mask = final_mask
     path = []
-    total_travel_time = 0
-    current_station = best_final_station
     
-    # Backtrack from the final station
-    while best_mask != 0:
-        path.append(idx_station[current_station])
-        next_station = prev_station[best_mask][current_station]
-        
-        # Add travel time between current_station and next_station
-        if next_station != -1:
-            total_travel_time += shortest_paths[idx_station[current_station]][idx_station[next_station]]
-        
-        best_mask ^= (1 << current_station)  # Remove current station from mask
-        current_station = next_station
+    while last_station != -1:
+        path.append(key_stations[last_station])
+        next_station = parent[mask][last_station]
+        mask ^= (1 << last_station)
+        last_station = next_station
     
-    path.reverse()  # Reverse to get the correct order
+    # Add the start station to the beginning and the end
+    path.reverse()  # Since we built the path backwards
+    path = [key_stations[start_idx]] + path + [key_stations[start_idx]]
     
-    # Finally, add the time to return to the starting point
-    total_travel_time += shortest_paths[idx_station[best_final_station]][starting_point]
-    path.append(starting_point)  # Return to the starting point
-    
-    return {"path": path, "satisfaction": best_satisfaction, "total_travel_time": total_travel_time}
+    return best_cost, best_satisfaction, path
 
+# Function to solve the entire problem by finding paths between key stations and concatenating them
+def solve_tour_with_key_stations(graph, locations, max_cost, start_station):
+
+    logger.info(type(station_to_index))
+    start_idx = station_to_index[start_station]
+
+    key_stations = [station_to_index[station_name] for station_name in locations.keys()]
+    satisfaction = {station_to_index[station_name]: satisfaction for station_name, (satisfaction, extra_cost) in locations.items()}
+    extra_cost = {station_to_index[station_name]: extra_cost for station_name, (satisfaction, extra_cost) in locations.items()}
+    
+    # Find all paths between each pair of key stations
+    paths_between_keys = {}
+    for i in range(len(key_stations)):
+        for j in range(i + 1, len(key_stations)):
+            start, end = key_stations[i], key_stations[j]
+            logger.info(f'{start}, {end}')
+            all_paths = find_all_paths(graph, start, end, max_cost)
+            if all_paths:
+                paths_between_keys[(start, end)] = all_paths
+                paths_between_keys[(end, start)] = [(path[::-1], cost) for path, cost in all_paths]  # Add reverse paths
+    
+    # Solve the TSP between key stations with the start fixed
+    best_cost, best_path = tsp_between_key_stations(key_stations, paths_between_keys, satisfaction, extra_cost, max_cost, start_idx)
+    
+    return best_cost, best_path
 
 @app.route('/tourist', methods=['POST'])
 def tourist():
     data = request.get_json()
     logging.info("data sent for evaluation {}".format(data))
-    result = maximize_satisfaction_dp(data['locations'], graph, data['startingPoint'], data['timeLimit'])
+    result = solve_tour_with_key_stations(graph, data['locations'], data['timeLimit'], data['startingPoint'])
     logging.info("My result :{}".format(result))
     return json.dumps(result)

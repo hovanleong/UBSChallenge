@@ -26,32 +26,17 @@ def bug_fixer():
             graph[a - 1].append(b - 1)
             indegree[b - 1] += 1
 
-        # Topological sorting using Kahn's algorithm
-        queue = deque()
+        def dfs(x):
+            res = 0
+            for n in graph[x]:
+                res = max(res, dfs(n))
+            return time[x] + res
+        
+        res = 0
         for i in range(n):
             if indegree[i] == 0:
-                queue.append(i)
-        
-        min_hours = [0] * n
-        
-        while queue:
-            project = queue.popleft()
-            
-            # The minimum time to finish this project
-            min_hours[project] += time[project]
-            
-            for neighbor in graph[project]:
-                # Decrease indegree and check if it can be added to the queue
-                indegree[neighbor] -= 1
-                if indegree[neighbor] == 0:
-                    queue.append(neighbor)
-                    
-                # Update the minimum hours required for the dependent project
-                min_hours[neighbor] = max(min_hours[neighbor], min_hours[project])
-        
-        # The final result is the maximum time required to finish all projects
-        results.append([min_hours[i] + time[i] for i in range(n)])
-    
+                res = max(res, dfs(i))
+        results.append(res)
     return jsonify(results)
 
 if __name__ == '__main__':
