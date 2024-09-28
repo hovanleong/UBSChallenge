@@ -11,6 +11,7 @@ confirmed = [''] * 5
 possible = {}
 letters = [True] * 26
 
+
 @app.route('/wordle-game', methods=['POST'])
 def wordle():
     data = request.get_json()
