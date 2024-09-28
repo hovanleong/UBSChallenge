@@ -47,7 +47,7 @@ def digital_colony():
         generations = item['generations']
         colony = item['colony']
         
-        grown_colony = grow_colony(colony, generations)
+        grown_colony = grow_colony_weight(colony, generations)
         
         final_weight = sum(int(c) for c in grown_colony)
         

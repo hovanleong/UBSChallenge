@@ -12,19 +12,21 @@ def calculate_signature(a, b):
         return 10 - (b - a)
 
 def grow_colony(colony, generations):
-    for _ in range(generations):
-        weight = sum(int(c) for c in colony)
-        new_colony = []
-        for i in range(len(colony) - 1):
-            a = int(colony[i])
-            b = int(colony[i + 1])
-            signature = calculate_signature(a, b)
-            new_digit = (weight + signature) % 10
-            new_colony.append(colony[i])
-            new_colony.append(str(new_digit))
-        new_colony.append(colony[-1])  # Add the last digit
-        colony = "".join(new_colony)
-    return colony
+    if generations <= 10:
+        for _ in range(generations):
+            weight = sum(int(c) for c in colony)
+            new_colony = []
+            for i in range(len(colony) - 1):
+                a = int(colony[i])
+                b = int(colony[i + 1])
+                signature = calculate_signature(a, b)
+                new_digit = (weight + signature) % 10
+                new_colony.append(colony[i])
+                new_colony.append(str(new_digit))
+            new_colony.append(colony[-1])  # Add the last digit
+            colony = "".join(new_colony)
+        return colony
+    return []
 
 def calculate_weight(colony):
     return sum(int(c) for c in colony)
