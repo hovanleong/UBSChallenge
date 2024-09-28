@@ -16,23 +16,24 @@ def calculate_signature(a, b):
 def grow_colony_weight(colony, generations):
     colony = [int(d) for d in colony]  # Convert string to a list of integers
     
-    for _ in range(generations):
-        weight = sum(colony)  # Calculate the weight of the current colony
-        new_colony = []  # Create a new list for the next generation
+    if generations <= 10:
+        for _ in range(generations):
+            weight = sum(colony)  # Calculate the weight of the current colony
+            new_colony = []  # Create a new list for the next generation
 
-        for i in range(len(colony) - 1):
-            a = colony[i]
-            b = colony[i + 1]
-            signature = calculate_signature(a, b)
-            new_digit = (weight + signature) % 10
+            for i in range(len(colony) - 1):
+                a = colony[i]
+                b = colony[i + 1]
+                signature = calculate_signature(a, b)
+                new_digit = (weight + signature) % 10
+                
+                new_colony.append(a)  # Append the current digit
+                new_colony.append(new_digit)  # Append the new digit
             
-            new_colony.append(a)  # Append the current digit
-            new_colony.append(new_digit)  # Append the new digit
+            new_colony.append(colony[-1])  # Add the last digit of the current colony
+            colony = new_colony  # Update the colony for the next generation
         
-        new_colony.append(colony[-1])  # Add the last digit of the current colony
-        colony = new_colony  # Update the colony for the next generation
-    
-    return sum(colony)  # Return the final weight of the colony
+        return sum(colony)  # Return the final weight of the colony
 
 
 @app.route('/digital-colony', methods=['POST'])
@@ -46,7 +47,7 @@ def digital_colony():
         generations = item['generations']
         colony = item['colony']
         
-        grown_colony = grow_colony(colony, generations)
+        grown_colony = grow_colony_weight(colony, generations)
         
         final_weight = sum(int(c) for c in grown_colony)
         
