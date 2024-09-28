@@ -44,7 +44,7 @@ def move_pieces(board, moves):
                     block_positions.insert(block_position, temp)
             
             elif all_curr[0] == all_curr[1] - 1:
-                if direction == 'E': # shift left
+                if direction == 'W': # shift left
                     block_positions.insert(all_curr[0] - 1, block)
                     block_positions.pop(all_curr[0])
                     block_positions.insert(all_curr[1], '@')
