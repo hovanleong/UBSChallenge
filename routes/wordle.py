@@ -93,7 +93,7 @@ def wordle_game():
     data = request.json
     guess_history = data.get("guessHistory", [])
     evaluation_history = data.get("evaluationHistory", [])
-    
+    logging.info("data sent for evaluation {}".format(data))
     # First guess, return "slate"
     if not guess_history:
         return jsonify({"guess": "slate"})
