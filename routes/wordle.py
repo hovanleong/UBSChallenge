@@ -10,7 +10,6 @@ WORD_LIST = []
 def load_words_from_file(file_path):
     with open(file_path, 'r') as file:
         words = [line.strip() for line in file.readlines()]
-        words.reverse()
     return words
 
 # Usage
@@ -36,8 +35,9 @@ def filter_words(guess_history, evaluation_history):
                 else:
                     if j in possible[g[j]]:
                         possible[g[j]].remove(j)  
-            elif e[j] == '-':    
-                letters[ord(g[j]) - ord('a')] = 0
+            elif e[j] == '-':
+                if g[j] not in confirmed and g[j] not in possible:    
+                    letters[ord(g[j]) - ord('a')] -= 0
            
 
     res = ''
@@ -61,7 +61,6 @@ def filter_words(guess_history, evaluation_history):
         
         if not match:
             continue  # Skip this word if it doesn't match confirmed letters
-
         # Check against possible letters and their positions
         possible_duplicate = possible.copy()
         for i in avail_index:
@@ -78,7 +77,6 @@ def filter_words(guess_history, evaluation_history):
         for j in range(26):
             if word.count(chr(j + ord('a'))) > letters[j]:
                 match = False
-                
                 break  # Word contains an excluded letter
         # If all conditions are satisfied, add to valid guesses
         if match:
