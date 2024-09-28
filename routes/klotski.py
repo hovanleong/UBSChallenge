@@ -1,7 +1,7 @@
 import json
 import logging
 
-from flask import request
+from flask import Flask, request, jsonify
 
 from routes import app
 

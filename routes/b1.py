@@ -1,63 +1,58 @@
-import json
-import logging
+from flask import Flask, request, jsonify
 from collections import defaultdict, deque
-
-from flask import request
+import logging
 
 from routes import app
 
+logger = logging.getLogger(__name__)
+
+
 @app.route('/bugfixer/p1', methods=['POST'])
 def bug_fixer():
-    data = request.json
-    result = []
+    data = request.get_json()
+    results = []
+    for entry in data:
+        time = entry["time"]
+        prerequisites = entry["prerequisites"]
 
-    for item in data:
-        time = item["time"]
-        prerequisites = item["prerequisites"]
-
-        # Number of projects
         n = len(time)
-
-        # Create a graph and in-degree count
+        
+        # Create a graph and indegree count
         graph = defaultdict(list)
-        in_degree = [0] * n
-        project_times = [0] * n
-
-        # Build the graph
+        indegree = [0] * n
+        
         for a, b in prerequisites:
-            graph[a - 1].append(b - 1)  # Convert to zero-indexed
-            in_degree[b - 1] += 1
+            # Adjust for 0-based indexing
+            graph[a - 1].append(b - 1)
+            indegree[b - 1] += 1
 
-        # Initialize project times
-        for i in range(n):
-            project_times[i] = time[i]
-
-        # Queue for processing projects with no prerequisites
+        # Topological sorting using Kahn's algorithm
         queue = deque()
-
-        # Enqueue projects with no prerequisites
         for i in range(n):
-            if in_degree[i] == 0:
+            if indegree[i] == 0:
                 queue.append(i)
-
-        # Topological sorting
+        
+        min_hours = [0] * n
+        
         while queue:
-            current = queue.popleft()
-
-            # Process dependent projects
-            for neighbor in graph[current]:
-                # Update the time required to complete this project
-                project_times[neighbor] = max(project_times[neighbor], project_times[current] + time[neighbor])
-
-                # Decrease in-degree and check if ready to process
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
+            project = queue.popleft()
+            
+            # The minimum time to finish this project
+            min_hours[project] += time[project]
+            
+            for neighbor in graph[project]:
+                # Decrease indegree and check if it can be added to the queue
+                indegree[neighbor] -= 1
+                if indegree[neighbor] == 0:
                     queue.append(neighbor)
-
-        # The result for this test case is the maximum time among all projects
-        result.append(max(project_times))
-
-    return jsonify(result)
+                    
+                # Update the minimum hours required for the dependent project
+                min_hours[neighbor] = max(min_hours[neighbor], min_hours[project])
+        
+        # The final result is the maximum time required to finish all projects
+        results.append([min_hours[i] + time[i] for i in range(n)])
+    
+    return jsonify(results)
 
 if __name__ == '__main__':
     app.run(debug=True)
