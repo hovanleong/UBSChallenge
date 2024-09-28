@@ -169,7 +169,7 @@ def eval_expression(expression):
         return None, str(e)
 
 
-@app.route('/lisp-parse', methods=['POST'])
+@app.route('/lisp-parser', methods=['POST'])
 def interpret():
     data = request.get_json()
     logging.info("data sent for evaluation {}".format(data))
