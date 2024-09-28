@@ -85,12 +85,6 @@ def filter_words(guess_history, evaluation_history):
     if res == '':
         return WORD_LIST[0]
     return res
-            
-                    
-
-    
-
-
 
 @app.route('/wordle-game', methods=['POST'])
 def wordle_game():
