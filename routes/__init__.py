@@ -8,3 +8,4 @@ import routes.kazuma
 import routes.klotski
 import routes.b1
 import routes.b2
+import routes.wordle
