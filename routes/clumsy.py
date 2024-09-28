@@ -12,29 +12,28 @@ def compare(s, t):
 
 @app.route('/the-clumsy-programmer', methods=['POST'])
 def clumsy():
-    data = request.get_json()
+    entry = request.get_json()
     results = []
 
-    for entry in data:
-        dictionary = entry["dictionary"]
-        mistypes = entry["mistypes"]
-        
-        words_by_length = {}
-        for word in dictionary:
-            if len(word) in words_by_length:
-                words_by_length[len(word)].append(word)
-            else:
-                words_by_length[len(word)] = [word]
+    dictionary = entry["dictionary"]
+    mistypes = entry["mistypes"]
+    
+    words_by_length = {}
+    for word in dictionary:
+        if len(word) in words_by_length:
+            words_by_length[len(word)].append(word)
+        else:
+            words_by_length[len(word)] = [word]
 
-        corrections = []
+    corrections = []
 
-        # For each mistyped word, find the corresponding correct word
-        for mistype in mistypes:
-            possible_corrections = words_by_length[len(mistype)]
-            for word in possible_corrections:
-                if compare(mistype, word):
-                    corrections.append(word)
+    # For each mistyped word, find the corresponding correct word
+    for mistype in mistypes:
+        possible_corrections = words_by_length[len(mistype)]
+        for word in possible_corrections:
+            if compare(mistype, word):
+                corrections.append(word)
 
-        results.append({'corrections': corrections})
+    results.append({'corrections': corrections})
     
     return jsonify(results)

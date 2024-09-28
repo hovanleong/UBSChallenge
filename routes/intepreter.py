@@ -117,6 +117,8 @@ def interpret():
     output = []
     
     for i, expression in enumerate(expressions):
+        logging.info("data sent for evaluation {}".format(expression))
+
         result, error = eval_expression(expression, i + 1)
         if result is not None:
             output.append(str(result))
