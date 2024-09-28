@@ -6,3 +6,4 @@ import routes.tourist
 import routes.dc2
 import routes.kazuma
 import routes.klotski
+import routes.b1
