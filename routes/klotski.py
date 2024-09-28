@@ -14,7 +14,8 @@ def move_pieces(board, moves):
 
     # Create a dictionary to hold the coordinates of each block
     block_positions = {block: (i // width, i % width) for i, block in enumerate(board)}
-    empty_position = block_positions['@']  # Get the position of the empty space
+    for _ in range(2):
+        empty_position = block_positions['@']  # Get the position of the empty space
 
     # Define the direction mappings
     directions = {
