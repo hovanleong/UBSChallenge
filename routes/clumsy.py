@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 
 from routes import app
-from collections import defaultdict
 
 def compare(s, t):
     n = len(s)
@@ -20,9 +19,12 @@ def clumsy():
         dictionary = entry["dictionary"]
         mistypes = entry["mistypes"]
         
-        words_by_length = defaultdict(list)
+        words_by_length = {}
         for word in dictionary:
-            words_by_length[len(word)].append(word)
+            if len(word) in words_by_length:
+                words_by_length[len(word)].append(word)
+            else:
+                words_by_length[len(word)] = [word]
 
         corrections = []
 
