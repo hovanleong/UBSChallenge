@@ -7,21 +7,21 @@ logger = logging.getLogger(__name__)
 
 variables = {}  # Store for variables
 
-def eval_expression(expression, line_number):
-    expression = expression.strip()
+# def eval_expression(expression, line_number):
+#     expression = expression.strip()
     
-    # Check for simple values like numbers, variables, or strings
-    if expression.isdigit() or re.match(r'^-?\d+(\.\d+)?$', expression):
-        return float(expression), None
-    elif expression.startswith('"') and expression.endswith('"'):
-        return expression[1:-1], None
-    elif expression in variables:
-        return float(variables[expression]), None
-    elif expression.startswith('(') and expression.endswith(')'):
-        # It's a sub-expression; we need to evaluate it
-        return eval_function(expression, line_number)
-    else:
-        return None, f"ERROR at line {line_number}: Invalid expression '{expression}'"
+#     # Check for simple values like numbers, variables, or strings
+#     if expression.isdigit() or re.match(r'^-?\d+(\.\d+)?$', expression):
+#         return float(expression), None
+#     elif expression.startswith('"') and expression.endswith('"'):
+#         return expression[1:-1], None
+#     elif expression in variables:
+#         return float(variables[expression]), None
+#     elif expression.startswith('(') and expression.endswith(')'):
+#         # It's a sub-expression; we need to evaluate it
+#         return eval_function(expression, line_number)
+#     else:
+#         return None, f"ERROR at line {line_number}: Invalid expression '{expression}'"
 
 def eval_function(expression, line_number):
     parts = re.findall(r'\(.*?\)|[^\s()]+', expression.strip('()'))
@@ -29,82 +29,158 @@ def eval_function(expression, line_number):
 
     try:
         if func_name == "puts":
-            result, error = eval_expression(parts[1], line_number)
-            if error:
-                return None, error
-            return str(result), None
+            if len(parts) != 2 or not parts[1].startswith('"') or not parts[1].endswith('"'):
+                return None, "Error: puts expects a single string argument"
+            return parts[1][1:-1], None  # Strip quotes
 
         elif func_name == "set":
             if len(parts) != 3:
-                return None, f"ERROR at line {line_number}: Incorrect number of arguments for set"
+                return None, "Error: Incorrect number of arguments for set"
             var_name = parts[1]
-            value, error = eval_expression(parts[2], line_number)
-            if error:
-                return None, error
-            variables[var_name] = value
+            if var_name in variables:
+                return None, f"Error: Variable '{var_name}' already defined"
+            variables[var_name] = parts[2]
             return None, None
 
-        elif func_name == "add":
-            values = [eval_expression(p, line_number)[0] for p in parts[1:]]
-            return round(sum(values), 4), None
-
-        elif func_name == "subtract":
-            values = [eval_expression(p, line_number)[0] for p in parts[1:]]
-            return round(values[0] - sum(values[1:]), 4), None
-
-        elif func_name == "multiply":
-            values = [eval_expression(p, line_number)[0] for p in parts[1:]]
-            result = 1
-            for v in values:
-                result *= v
-            return round(result, 4), None
-
-        elif func_name == "divide":
-            values = [eval_expression(p, line_number)[0] for p in parts[1:]]
-            if 0 in values[1:]:
-                return None, f"ERROR at line {line_number}: Division by zero"
-            result = values[0]
-            for v in values[1:]:
-                result /= v
-            return round(result, 4), None
-
         elif func_name == "concat":
-            results = [eval_expression(p, line_number)[0] for p in parts[1:]]
-            return "".join([str(r) for r in results]), None
-
-        elif func_name == "uppercase":
-            result, error = eval_expression(parts[1], line_number)
-            if error:
-                return None, error
-            return str(result).upper(), None
+            if len(parts) != 3 or not all(p.startswith('"') and p.endswith('"') for p in parts[1:]):
+                return None, "Error: concat expects two string arguments"
+            return parts[1][1:-1] + parts[2][1:-1], None
 
         elif func_name == "lowercase":
-            result, error = eval_expression(parts[1], line_number)
-            if error:
-                return None, error
-            return str(result).lower(), None
+            if len(parts) != 2 or not parts[1].startswith('"') or not parts[1].endswith('"'):
+                return None, "Error: lowercase expects a single string argument"
+            return parts[1][1:-1].lower(), None
 
+        elif func_name == "uppercase":
+            if len(parts) != 2 or not parts[1].startswith('"') or not parts[1].endswith('"'):
+                return None, "Error: uppercase expects a single string argument"
+            return parts[1][1:-1].upper(), None
+        
+        # replace function
         elif func_name == "replace":
-            original, target, replacement = [eval_expression(p, line_number)[0] for p in parts[1:4]]
-            return str(original).replace(str(target), str(replacement)), None
+            if len(parts) != 4 or not all(p.startswith('"') and p.endswith('"') for p in parts[1:]):
+                return None, "Error: replace expects three string arguments"
+            source, target, replacement = parts[1][1:-1], parts[2][1:-1], parts[3][1:-1]
+            return source.replace(target, replacement), None
 
-        elif func_name == "str":
-            result, error = eval_expression(parts[1], line_number)
-            if error:
-                return None, error
-            return str(result), None
+        # substring function
+        elif func_name == "substring":
+            if len(parts) != 4 or not parts[1].startswith('"') or not parts[1].endswith('"'):
+                return None, "Error: substring expects a string and two numeric arguments"
+            try:
+                start, end = int(parts[2]), int(parts[3])
+                source = parts[1][1:-1]
+                if start < 0 or end > len(source) or start >= end:
+                    return None, "Error: Index out of bounds"
+                return source[start:end], None
+            except ValueError:
+                return None, "Error: Invalid index type"
 
-        # Max and min functions for variable arguments
+        # add function
+        elif func_name == "add":
+            try:
+                numbers = [float(x) for x in parts[1:]]
+                return round(sum(numbers), 4), None
+            except ValueError:
+                return None, "Error: add expects numeric arguments"
+
+        # subtract function
+        elif func_name == "subtract":
+            if len(parts) != 3:
+                return None, "Error: subtract expects two numeric arguments"
+            try:
+                result = float(parts[1]) - float(parts[2])
+                return round(result, 4), None
+            except ValueError:
+                return None, "Error: subtract expects numeric arguments"
+
+        # multiply function
+        elif func_name == "multiply":
+            try:
+                result = 1
+                for num in parts[1:]:
+                    result *= float(num)
+                return round(result, 4), None
+            except ValueError:
+                return None, "Error: multiply expects numeric arguments"
+
+        # divide function
+        elif func_name == "divide":
+            if len(parts) != 3:
+                return None, "Error: divide expects two numeric arguments"
+            try:
+                dividend, divisor = float(parts[1]), float(parts[2])
+                if divisor == 0:
+                    return None, "Error: Division by zero"
+                result = dividend / divisor
+                return round(result, 4), None
+            except ValueError:
+                return None, "Error: divide expects numeric arguments"
+        # Absolute value function
+        elif func_name == "abs":
+            if len(parts) != 2:
+                return None, "Error: abs expects one numeric argument"
+            try:
+                return abs(float(parts[1])), None
+            except ValueError:
+                return None, "Error: abs expects a numeric argument"
+
+        # Max function
         elif func_name == "max":
-            values = [eval_expression(p, line_number)[0] for p in parts[1:]]
-            return max(values), None
+            try:
+                numbers = [float(p) for p in parts[1:]]
+                return max(numbers), None
+            except ValueError:
+                return None, "Error: max expects numeric arguments"
 
+        # Min function
         elif func_name == "min":
-            values = [eval_expression(p, line_number)[0] for p in parts[1:]]
-            return min(values), None
+            try:
+                numbers = [float(p) for p in parts[1:]]
+                return min(numbers), None
+            except ValueError:
+                return None, "Error: min expects numeric arguments"
 
+        # Greater than (gt) function
+        elif func_name == "gt":
+            if len(parts) != 3:
+                return None, "Error: gt expects two numeric arguments"
+            try:
+                return float(parts[1]) > float(parts[2]), None
+            except ValueError:
+                return None, "Error: gt expects numeric arguments"
+
+        # Less than (lt) function
+        elif func_name == "lt":
+            if len(parts) != 3:
+                return None, "Error: lt expects two numeric arguments"
+            try:
+                return float(parts[1]) < float(parts[2]), None
+            except ValueError:
+                return None, "Error: lt expects numeric arguments"
+
+        # Equality check (equal) function
+        elif func_name == "equal":
+            if len(parts) != 3:
+                return None, "Error: equal expects two arguments"
+            return parts[1] == parts[2], None
+
+        # Not equal (not_equal) function
+        elif func_name == "not_equal":
+            if len(parts) != 3:
+                return None, "Error: not_equal expects two arguments"
+            return parts[1] != parts[2], None
+
+        # String conversion (str) function
+        elif func_name == "str":
+            if len(parts) != 2:
+                return None, "Error: str expects one argument"
+            return str(parts[1]), None
+
+        # Error handling for unknown functions
         else:
-            return None, f"ERROR at line {line_number}: Unknown function '{func_name}'"
+            return None, f"Error: Unknown function '{func_name}'"
 
     except Exception as e:
         return None, f"ERROR at line {line_number}: {str(e)}"
@@ -119,7 +195,8 @@ def interpret():
     for i, expression in enumerate(expressions):
         logging.info("data sent for evaluation {}".format(expression))
 
-        result, error = eval_expression(expression, i + 1)
+        result, error = eval_function(expression, i + 1)
+        logging.info(result)
         if result is not None:
             output.append(str(result))
         if error is not None:
