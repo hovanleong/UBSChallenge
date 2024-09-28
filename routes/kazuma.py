@@ -30,31 +30,24 @@ def calculate_efficiency_dp(monsters):
     # Initialize dp arrays
     # dp[i][0] -> Max profit up to time i if not attacking
     # dp[i][1] -> Max profit up to time i if attacking
-    dp = [[0, 0, 0, 0] for _ in range(n)]
+    dp = [[0, 0] for _ in range(n)]
 
     # Base case for time 0
-    dp[0][0] = 0 # in rear without charge
-    dp[0][1] = -monsters[0] # charge up
-    dp[0][2] = -999999 # in rear with charge
-    dp[0][3] = 0 # attack
+    dp[0][0] = 0 # uncharged
+    dp[0][1] = -monsters[0] # charged
 
     # Fill the dp table
     for i in range(1, n):
+
         # If Kazuma is in rear at time i without charge, carry forward the max of the previous state (either attack or not attack)
-        dp[i][0] = max(dp[i - 1][0], dp[i - 1][3])
+        dp[i][0] = max(dp[i - 1][0], dp[i - 1][1] + monsters[i])
 
         # If Kazuma charges up at time i, subtract the cost of preparing
-        dp[i][1] = max(dp[i - 1][0], dp[i - 1][3]) - monsters[i]
-
-        # if in rear at time i with charge, must either already with charge or just charged
-        dp[i][2] = max(dp[i - 1][1], dp[i - 1][2])
-
-        # if attacking, must either just charged or in rear with charge
-        dp[i][3] = max(dp[i - 1][1], dp[i - 1][2]) + monsters[i]
+        dp[i][1] = max(dp[i - 1][1], dp[i - 1][0] - monsters[i])
 
     logger.info(dp)
     # The result is the maximum profit at the last time step, whether Kazuma attacks or not
-    return max(dp[n - 1][0], dp[n - 1][1], dp[n-1][2], dp[n-1][3])
+    return max(dp[n - 1][0], dp[n - 1][1])
 
 @app.route('/efficient-hunter-kazuma', methods=['POST'])
 def efficient_hunter_kazuma():
