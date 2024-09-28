@@ -18,22 +18,19 @@ def clumsy():
     for entry in data:
         dictionary = entry["dictionary"]
         mistypes = entry["mistypes"]
-        
-        # words_by_length = {}
-        # for word in dictionary:
-        #     if len(word) in words_by_length:
-        #         words_by_length[len(word)].append(word)
-        #     else:
-        #         words_by_length[len(word)] = [word]
+
+        if dictionary:  # Ensure dictionary is not empty
+            word_length = len(dictionary[0])
 
         corrections = []
 
-        # For each mistyped word, find the corresponding correct word
+        # For each mistyped word, find the first correct word (since one char is wrong)
         for mistype in mistypes:
             for word in dictionary:
                 if compare(mistype, word):
                     corrections.append(word)
+                    break  # Break out of the loop once a match is found
 
-        results.append({'corrections': corrections})
-    
+        results.append({"corrections": corrections})
+
     return jsonify(results)
