@@ -10,3 +10,4 @@ import routes.b1
 import routes.b2
 import routes.wordle
 import routes.clumsy
+import routes.decode
