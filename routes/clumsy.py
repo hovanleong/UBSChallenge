@@ -2,13 +2,10 @@ from flask import Flask, request, jsonify
 
 from routes import app
 
+import Levenshtein
+
 def compare(s, t):
-    n = len(s)
-    count = 0
-    for i in range(n):
-        if s[i] != t[i]:
-            count += 1
-    return count == 1
+    return Levenshtein.distance(s, t) == 1
 
 @app.route('/the-clumsy-programmer', methods=['POST'])
 def clumsy():
@@ -18,9 +15,6 @@ def clumsy():
     for entry in data:
         dictionary = entry["dictionary"]
         mistypes = entry["mistypes"]
-
-        if dictionary:  # Ensure dictionary is not empty
-            word_length = len(dictionary[0])
 
         corrections = []
 
