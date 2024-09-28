@@ -23,9 +23,10 @@ file_handler.setFormatter(formatter)  # Apply the formatter to the handler
 logger.addHandler(file_handler)
 
 class Node:
-    def __init__(self, state, gold):
+    def __init__(self, state, gold, parent=None):
         self.state = state  # "charged", "uncharged"
         self.gold = gold  # Current gold
+        self.parent = parent  # Reference to the parent node
         self.children = []  # List of child nodes (next possible actions)
 
     def add_child(self, child_node):
@@ -39,21 +40,28 @@ def build_tree(node, monsters, idx):
 
     # Branching from "uncharged"
     if node.state == "uncharged":
-        # Kazuma can either remain at base or charge
-        uncharge_node = Node("uncharged", node.gold)
-        charge_node = Node("charged", node.gold - monsters[idx])  # Charge, losing current monster gold
-        node.add_child(uncharge_node)
-        node.add_child(charge_node)
+        # Check the parent's state to apply the rule
+        if node.parent is None or node.parent.state != "charged":
+            # Kazuma can either remain at base or charge if the parent state wasn't "uncharged"
+            uncharge_node = Node("uncharged", node.gold, parent=node)
+            charge_node = Node("charged", node.gold - monsters[idx], parent=node)
+            node.add_child(uncharge_node)
+            node.add_child(charge_node)
 
-        # Recursively build from these states
-        build_tree(uncharge_node, monsters, idx + 1)
-        build_tree(charge_node, monsters, idx + 1)
+            # Recursively build from these states
+            build_tree(uncharge_node, monsters, idx + 1)
+            build_tree(charge_node, monsters, idx + 1)
+        else:
+            # If the parent is "uncharged," only stay is allowed
+            uncharge_node = Node("uncharged", node.gold, parent=node)
+            node.add_child(uncharge_node)
+            build_tree(uncharge_node, monsters, idx + 1)
 
     # Branching from "charged"
     elif node.state == "charged":
         # Kazuma can either stay (remain charging) or attack
-        uncharge_node = Node("uncharged", node.gold + monsters[idx])  # Attack, gaining monster gold
-        charge_node = Node("charged", node.gold)  # Stay charged
+        uncharge_node = Node("uncharged", node.gold + monsters[idx], parent=node)
+        charge_node = Node("charged", node.gold, parent=node)
         node.add_child(uncharge_node)
         node.add_child(charge_node)
 
