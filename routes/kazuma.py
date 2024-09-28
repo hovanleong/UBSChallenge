@@ -1,6 +1,8 @@
+import math
+
 from flask import Flask, request, jsonify
 
-app = Flask(__name__)
+from routes import app
 
 def calculate_efficiency(monsters):
     res = 0
@@ -22,6 +24,8 @@ def calculate_efficiency(monsters):
             res += diff
             curr_min = math.inf
             curr_max = -math.inf
+    if curr_min != math.inf and curr_max != -math.inf and curr_max - curr_min > 0:
+        res += curr_max - curr_min
     return res
 
 @app.route('/efficient-hunter-kazuma', methods=['POST'])
