@@ -1,97 +1,71 @@
 import json
 import logging
 
-from flask import request
+from flask import Flask, request, jsonify
 
 from routes import app
 
 logger = logging.getLogger(__name__)
 
-# Directions mapping for movements
-DIRECTIONS = {
-    'N': (-1, 0),  # Move up
-    'S': (1, 0),   # Move down
-    'E': (0, 1),   # Move right
-    'W': (0, -1)   # Move left
-}
+# Function to move the pieces based on the moves string
+def move_pieces(board, moves):
+    # Get the width of the board (assuming fixed width for Klotski)
+    width = 4
 
-def parse_board(board_str):
-    """Convert board string to a 2D list."""
-    return [list(board_str[i:i+4]) for i in range(0, len(board_str), 4)]
+    # Create a dictionary to hold the coordinates of each block
+    block_positions = {block: (i // width, i % width) for i, block in enumerate(board)}
+    for _ in range(2):
+        empty_position = block_positions['@']  # Get the position of the empty space
 
-def board_to_string(board):
-    """Convert a 2D list back to a board string."""
-    return ''.join(''.join(row) for row in board)
+    # Define the direction mappings
+    directions = {
+        'N': (-1, 0),  # Move up
+        'S': (1, 0),   # Move down
+        'E': (0, 1),   # Move right
+        'W': (0, -1)   # Move left
+    }
 
-def find_block(board, block):
-    """Find the coordinates of the block on the board."""
-    for r in range(5):
-        for c in range(4):
-            if board[r][c] == block:
-                return r, c
-    return None
-
-def get_block_shape(board, block):
-    """Get the coordinates of all parts of the block."""
-    shape = []
-    for r in range(5):
-        for c in range(4):
-            if board[r][c] == block:
-                shape.append((r, c))
-    return shape
-
-def can_move(board, shape, direction):
-    """Check if the block can be moved in the specified direction."""
-    dr, dc = direction
-    for r, c in shape:
-        new_r, new_c = r + dr, c + dc
-        if new_r < 0 or new_r >= 5 or new_c < 0 or new_c >= 4 or board[new_r][new_c] != '@':
-            return False
-    return True
-
-def move_block(board, shape, direction):
-    """Move the block on the board."""
-    dr, dc = direction
-    new_shape = [(r + dr, c + dc) for r, c in shape]
-
-    # Clear the old positions
-    for r, c in shape:
-        board[r][c] = '@'
-
-    # Set the new positions
-    for r, c in new_shape:
-        board[r][c] = shape[0]  # Use the block's identifier
-
-def apply_moves(board, moves):
-    """Apply the moves to the board."""
+    # Process moves in pairs
     for i in range(0, len(moves), 2):
-        block = moves[i]
-        direction = moves[i + 1]
+        direction = moves[i + 1]       # The first character of the pair (direction)
+        block = moves[i]      # The second character of the pair (block to move)
 
-        shape = get_block_shape(board, block)
-        if shape:  # Ensure the block exists
-            if can_move(board, shape, DIRECTIONS[direction]):
-                move_block(board, shape, DIRECTIONS[direction])
+        for block in block_positions:
+            # Get the current position of the block
+            block_position = block_positions[block]
+            target_position = (block_position[0] + directions[direction][0], 
+                            block_position[1] + directions[direction][1])
 
-def process_board(board_str, moves):
-    """Process the board and apply the moves."""
-    board = parse_board(board_str)
-    apply_moves(board, moves)
-    return board_to_string(board)
+            # Check if the target position is valid and is the empty space
+            if target_position == empty_position:
+                # Swap the block and the empty space in the dictionary
+                block_positions[block], block_positions['@'] = empty_position, block_position
+
+                # Update the empty position
+                empty_position = block_position
+
+    # Build the resultant board string from the block positions
+    result_board = [''] * len(board)
+    for block, position in block_positions.items():
+        index = position[0] * width + position[1]  # Convert to index
+        result_board[index] = block
+    
+    return ''.join(result_board)
 
 @app.route('/klotski', methods=['POST'])
 def klotski():
-    """Handle POST requests to /klotski endpoint."""
-    data = request.get_json()
+    data = request.json
+    result_boards = []
     
-    results = []
     for item in data:
-        board = item['board']
-        moves = item['moves']
-        result_board = process_board(board, moves)
-        results.append(result_board)
+        board = item["board"]
+        moves = item["moves"]
+        
+        # Process the moves on the board and get the resultant board
+        result_board = move_pieces(board, moves)
+        result_boards.append(result_board)
     
-    return json.dumps(results)
+    return jsonify(result_boards)
 
 if __name__ == '__main__':
     app.run(debug=True)
