@@ -10,6 +10,7 @@ WORD_LIST = []
 def load_words_from_file(file_path):
     with open(file_path, 'r') as file:
         words = [line.strip() for line in file.readlines()]
+        words.reverse()
     return words
 
 # Usage
@@ -76,10 +77,9 @@ def filter_words(guess_history, evaluation_history):
         # Check against excluded letters
         for j in range(26):
             if word.count(chr(j + ord('a'))) > letters[j]:
-                print(chr(j + ord('a')))
                 match = False
+                
                 break  # Word contains an excluded letter
-        
         # If all conditions are satisfied, add to valid guesses
         if match:
             res = word
