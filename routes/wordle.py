@@ -16,11 +16,12 @@ def load_words_from_file(file_path):
 file_path = 'words.txt'  # Replace with your actual file path
 WORD_LIST = load_words_from_file(file_path)
 
-confirmed = [''] * 5
-possible = {}
-letters = [True] * 26
+
 
 def filter_words(guess_history, evaluation_history):
+    confirmed = [''] * 5
+    possible = {}
+    letters = [True] * 26
     n = len(guess_history)
     for i in range(n):
         g = guess_history[i]
@@ -29,15 +30,18 @@ def filter_words(guess_history, evaluation_history):
             if e[j] == 'O':
                 confirmed[j] = g[j]
             elif e[j] == 'X':
-                if (possible.get(g[j]) == None):
+                if possible.get(g[j]) == None:
                     possible[g[j]] = [i for i in range(5) if i != j]
                 else:
                     if j in possible[g[j]]:
-                        possible[g[j]] = possible[g[j]].remove(j)
+                        possible[g[j]].remove(j)                        
             elif e[j] == '-':
-                letters[ord(g[j]) - ord('a')] = False
+                if g[j] not in confirmed and g[j] not in possible:
+                    letters[ord(g[j]) - ord('a')] = False
+           
 
     res = ''
+    
     for word in WORD_LIST:
         match = True
         avail_index = [0, 1, 2, 3, 4]
@@ -60,9 +64,10 @@ def filter_words(guess_history, evaluation_history):
         possible_duplicate = possible.copy()
         for i in avail_index:
             for k in possible:
-                if word[i] == k and i in possible[k]:
-                    if k in possible_duplicate:
-                        del possible_duplicate[k]
+                if word[i] == k:
+                    if possible[k] != None and i in possible[k]:
+                        if k in possible_duplicate:
+                            del possible_duplicate[k]
                     
         if possible_duplicate:
             continue
