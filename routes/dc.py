@@ -1,8 +1,8 @@
 import json
 import logging
 from flask import Flask, request
-
 from routes import app
+
 def calculate_signature(a, b):
     if a == b:
         return 0
