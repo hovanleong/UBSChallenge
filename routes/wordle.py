@@ -37,7 +37,7 @@ def filter_words(guess_history, evaluation_history):
                         possible[g[j]].remove(j)  
             elif e[j] == '-':
                 if g[j] not in confirmed and g[j] not in possible:    
-                    letters[ord(g[j]) - ord('a')] -= 0
+                    letters[ord(g[j]) - ord('a')] = 0
            
 
     res = ''
