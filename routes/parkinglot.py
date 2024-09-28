@@ -118,20 +118,24 @@ class Vehicle:
     def __repr__(self):
         return f"{self.__class__.__name__}({self.plateNumber}, x={self.x}, y={self.y}, direction={self.direction})"
     
-    def forward_left(direction):
+    def forward_left(self, direction):
         if direction == NORTH:
             return WEST
         elif direction == WEST:
             return SOUTH
         elif direction == SOUTH:
+            self.y = self.y + self.length - self.width
             return EAST
         elif direction == EAST:
+            self.x = self.x + self.length - self.width
+            self.y = self.y + self.length - self.width
             return NORTH
 
-    def forward_right(direction):
+    def forward_right(self, direction):
         if direction == NORTH:
             return EAST
         elif direction == EAST:
+            self.x = self.x + self.length - self.width
             return SOUTH
         elif direction == SOUTH:
             return WEST
