@@ -26,20 +26,16 @@ def bug_fixer():
             graph[a - 1].append(b - 1)
             indegree[b - 1] += 1
 
+        def dfs(x):
+            res = 0
+            for n in graph[x]:
+                res = max(res, dfs(n))
+            return time[x] + res
+        
         res = 0
         for i in range(n):
             if indegree[i] == 0:
-                count = 0
-                queue = deque([i])
-                while queue:
-                    level = []
-                    for j in range(len(queue)):
-                        x = queue.popleft()
-                        level.append(time[x])
-                        for n in graph[x]:
-                            queue.append(n)
-                    count += max(level)
-                res = max(res, count)
+                res = max(res, dfs(i))
         results.append(res)
     return jsonify(results)
 
