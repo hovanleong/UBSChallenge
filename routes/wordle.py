@@ -4,7 +4,6 @@ import logging
 from flask import Flask, request, jsonify
 
 from routes import app
-logger = logging.getLogger(__name__)
 
 # Load your word list
 WORD_LIST = []
@@ -79,6 +78,8 @@ def filter_words(guess_history, evaluation_history):
         if match:
             res = word
             break
+    if res == '':
+        return WORD_LIST[0]
     return res
             
                     
@@ -101,7 +102,7 @@ def wordle_game():
     res = filter_words(guess_history, evaluation_history)
     logging.info("My result :{}".format(res))
 
-    return json.dumps({"guess": res})
+    return jsonify({"guess": res})
 
 if __name__ == '__main__':
     app.run(debug=True)
