@@ -12,18 +12,25 @@ def calculate_signature(a, b):
     else:
         return 10 - (b - a)
 
-def grow_colony_weight(current_weight, counts, generations):
+def grow_colony(colony, generations):
     for _ in range(generations):
-        new_counts = [0] * 10
-        for i in range(10):
-            for j in range(10):
-                if counts[i] > 0 and counts[j] > 0:
-                    signature = calculate_signature(i, j)
-                    new_digit = (current_weight + signature) % 10
-                    new_counts[new_digit] += counts[i] * counts[j]
-        current_weight = sum(counts) + sum(new_counts)  # Update weight
-        counts = new_counts
-    return current_weight
+        weight = sum(int(c) for c in colony)
+        new_colony = []
+        
+        # Process each adjacent pair
+        for i in range(len(colony) - 1):
+            a = int(colony[i])
+            b = int(colony[i + 1])
+            signature = calculate_signature(a, b)
+            new_digit = (weight + signature) % 10
+            
+            new_colony.append(colony[i])  # Add the first digit of the pair
+            new_colony.append(str(new_digit))  # Add the new digit from the pair
+
+        new_colony.append(colony[-1])  # Add the last digit of the colony
+        colony = "".join(new_colony)
+    
+    return colony
 
 @app.route('/digital-colony', methods=['POST'])
 def digital_colony():
@@ -36,14 +43,9 @@ def digital_colony():
         generations = item['generations']
         colony = item['colony']
         
-        # Initialize counts array
-        counts = [0] * 10
-        for char in colony:
-            counts[int(char)] += 1
-            
-        initial_weight = sum(int(c) for c in colony)
+        grown_colony = grow_colony(colony, generations)
         
-        final_weight = grow_colony_weight(initial_weight, counts, generations)
+        final_weight = sum(int(c) for c in grown_colony)
         
         results.append(str(final_weight))
     
